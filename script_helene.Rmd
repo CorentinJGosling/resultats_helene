@@ -1,0 +1,61 @@
+---
+title: "Helene Laurence Sabine"
+author: "Gosling CJ"
+date: "25/05/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Scoring
+```{r warning = FALSE, results = 'hide', message=FALSE}
+library(emmeans); library(ggplot2)
+dat = readxl::read_excel("C:/Users/Corentin Gosling/drive_gmail/Recherche/Laboratoire/helene/TL_transversale (1).xlsx")
+
+dat$read_time = dat$`TL_logTps PC`
+dat$text_vers = factor(dat$TL_version)
+dat$context = factor(dat$TL_contexte)
+dat$cons = factor(dat$consigne)
+dat$school = factor(dat$niveau)
+
+dat$ri_1 = factor(dat$prenomN)
+dat$ri_2 = factor(dat$TL_num_texte)
+```
+
+# Model
+prenom + TL_num_text => random intercept
+TL_version => random slope
+```{r}
+mixmod = lme4::lmer(read_time ~ text_vers * cons * school + 
+                      (1 + text_vers | ri_1) + (1 + text_vers | ri_2), 
+                    contrasts = list(
+                      text_vers = "contr.sum", 
+                      cons = "contr.sum",
+                      school = "contr.sum"),
+                    data = dat)
+
+car::Anova(mixmod, type = 3)
+```
+
+# Post hoc & estimated means
+```{r}
+emm = emmeans(mixmod, specs = pairwise ~
+                school * cons | text_vers)
+emm
+```
+
+# Plot
+```{r, fig.width=9}
+df_plot = data.frame(emm$emmeans)
+ggplot(df_plot, aes(x = text_vers, y = emmean, fill = cons)) +
+  facet_wrap(~ school) + 
+  geom_bar(stat = "identity", position = position_dodge(width = 1), alpha = 0.6) + 
+  coord_cartesian(ylim = c(3.25, 3.75)) + 
+  geom_errorbar(aes(x=text_vers, ymin=asymp.LCL, ymax=asymp.UCL), width = 0.3, alpha = 0.4,
+                 colour="black", position = position_dodge(width = 1)) +
+  theme_bw() 
+
+```
+
